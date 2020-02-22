@@ -1,0 +1,10 @@
+
+ - [ ] Add `setup.py` commands
+ - [ ] Add `main.py` target mapped to `conda-build-prepare` command
+ - [ ] Finish collecting and writing the metadata
+ - [ ] Copy the package to a temporary location.
+ - [ ] Filter out the in correct tags.
+
+Maybe
+ - Just set the tag values in the metadata rather than letting conda subsitute it?
+ - Prepare for multiple Python versions?
