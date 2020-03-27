@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 
 def get_travis_slug():
     travis_repo_slug = os.environ.get('TRAVIS_REPO_SLUG')
