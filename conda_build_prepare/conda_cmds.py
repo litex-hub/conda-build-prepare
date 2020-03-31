@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-
+import os
+import json
+import subprocess
+import yaml
+from prepare import get_local_channels
 
 def run(cmd, *args):
     conda_path = os.environ.get('CONDA_PATH', os.path.expanduser('~/conda'))
