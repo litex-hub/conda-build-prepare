@@ -31,11 +31,9 @@ def create_env(package_dir):
     for lc in reversed(get_local_channels()):
         data['channels'].insert(0, lc)
 
-    prefix = run_conda("create", "--name", package, "--strict-channel-priority")
+    prefix = run("create", "--name", package, "--strict-channel-priority")
     env_condarc = os.path.join(prefix, 'condarc')
     with open(env_condarc, "w") as f:
         yaml.safe_dump(data, f)
 
     print(open(env_condarc).read())
-
-
