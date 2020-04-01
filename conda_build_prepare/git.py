@@ -3,7 +3,6 @@
 import re
 import subprocess
 
-
 GITHUB_RE = re.compile("github.com[:/](?P<user>[^/\n]+)(/(?P<repo>[^/.].*?))?(.git|/|$)")
 
 def extract_github_parts(url):
@@ -64,7 +63,7 @@ def extract_github_repo(url):
     return extract_github_parts(url)[1]
 
 
-def upstream(env=env):
+def upstream(**env):
     """Get 'upstream' URL for the git repository."""
     remotes = remotes('fetch')
 
@@ -74,7 +73,7 @@ def upstream(env=env):
             ['git', 'rev-parse', '--symbolic-full-name', '@{u}'], env=env,
         ).decode('utf-8').strip()
         if upstream and '/' in upstream:
-            remote, remote_branch = upstream.split('/')
+            _, __, remote, remote_branch = upstream.split('/')
             assert remote in remotes, (remote, remotes)
             return remotes[remote]
     except subprocess.CalledProcessError:
@@ -129,6 +128,28 @@ def list_tags(tag_filter=None, **env):
 
     return sort_tags(tags.splitlines(), tag_filter)
 
+def sort_tags(tags, tag_filter=None):
+    """
+    >>> sort_tags(['a', 'c', '1'])
+    ['1', 'a', 'c']
+    >>> sort_tags(['v1.101.3', 'v1.101.2', 'v1.100.11', 'hello'], tag_version_filter)
+    ['v1.100.11', 'v1.101.2', 'v1.101.3']
+    """
+    if tag_filter is None:
+        tag_filter = lambda x: x
+
+    to_sort = []
+    for x in tags:
+        sort_key = tag_filter(x)
+        if sort_key is None:
+            continue
+        to_sort.append((sort_key, x))
+    to_sort.sort()
+
+    return [x for _, x in to_sort]
+
+
+
 
 def tag_version_filter(x):
     """
@@ -153,7 +174,7 @@ def tag_version_filter(x):
 
 
 def git_tag_versions(**env):
-    return git_tags(git_tag_version_filter, **env)
+    return list_tags(tag_version_filter, **env)
 
 
 def git_add_v0(**env):
@@ -161,8 +182,8 @@ def git_add_v0(**env):
 
 
 def git_describe(**env):
-    git_unshallow(**env)
-    git_fetch_tags(**env)
+    unshallow(**env)
+    fetch_tags(**env)
 
 
 if __name__ == "__main__":
