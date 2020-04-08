@@ -62,6 +62,11 @@ def extract_github_repo(url):
     """
     return extract_github_parts(url)[1]
 
+def remotes(direction):
+    if direction not in ["fetch", "pull"]:
+        return None
+    remotes = subprocess.check_output( ['git', 'remote', '-v']).decode('utf-8').strip().split("\n")
+    return [i for i in remotes if direction in i]
 
 def upstream(**env):
     """Get 'upstream' URL for the git repository."""
