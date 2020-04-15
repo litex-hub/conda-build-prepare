@@ -4,8 +4,9 @@ import json
 import os
 import re
 import subprocess
+import shutil
 import yaml
-from git import remotes, extract_github_user
+from git_helpers import remotes, extract_github_user
 from travis import get_travis_slug
 
 from collections import OrderedDict
@@ -49,6 +50,18 @@ def write_metadata(package_dir):
         metadata['extra']['recipe']['repo'] = 'https://github.com/'+get_travis_slug()
         metadata['extra']['recipe']['branch'] = os.environ.get('TRAVIS_BRANCH', '?')
         metadata['extra']['recipe']['commit'] = os.environ.get('TRAVIS_COMMIT', '?')
+
+    with open(metadata_file, "w") as meta:
+        yaml.safe_dump(metadata, meta)
+
+def prepare_directory(package_dir, dest_dir):
+    assert os.path.exists(package_dir)
+    assert not os.path.exists(dest_dir)
+
+    os.mkdir(dest_dir)
+
+    shutil.copytree(package_dir, dest_dir)
+
 
 if __name__ == "__main__":
     import doctest
