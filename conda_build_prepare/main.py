@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import conda_cmds
 from prepare import prepare_directory
 
 def existingDir(dir_name):
@@ -21,3 +22,5 @@ if __name__ == '__main__':
     parser.add_argument("-v", "--verbose", action="store_true", help="Add more verbosity to output")
     parser.add_argument("--dir", action="store", required=True, type=newDir, dest="directory", help="Use DIRECTORY to store generated files and cloned repository")
     args = parser.parse_args()
+    conda_cmds.dump_config(args.package)
+    print(repr(list(conda_cmds.get_git_uris(args.package))))
