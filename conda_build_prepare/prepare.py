@@ -47,12 +47,13 @@ def write_metadata(package_dir):
             'type': os.environ.get('TRAVIS_EVENT_TYPE'),
         }
         # Override details from git with data from travis
-        metadata['extra']['recipe']['repo'] = 'https://github.com/'+get_travis_slug()
+        metadata['extra']['recipe']['repo'] = 'https://github.com/' + get_travis_slug()
         metadata['extra']['recipe']['branch'] = os.environ.get('TRAVIS_BRANCH', '?')
         metadata['extra']['recipe']['commit'] = os.environ.get('TRAVIS_COMMIT', '?')
 
     with open(metadata_file, "w") as meta:
         yaml.safe_dump(metadata, meta)
+
 
 def prepare_directory(package_dir, dest_dir):
     assert os.path.exists(package_dir)
@@ -61,6 +62,8 @@ def prepare_directory(package_dir, dest_dir):
     os.mkdir(dest_dir)
 
     shutil.copytree(package_dir, dest_dir)
+
+    write_metadata(dest_dir)
 
 
 if __name__ == "__main__":
