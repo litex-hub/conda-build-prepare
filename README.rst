@@ -16,7 +16,8 @@ Stages of preparation:
 
 Options::
 
-    --out=DIRECTORY     Use DIRECTORY to store generated files and cloned repository
+    package_dir         Path to the directory containing ``meta.yaml`` of the package
+    --out=DIRECTORY     Use DIRECTORY to store generated files on which ``conda build`` should be run
     -v, --verbose       Add more verbosity to output
 
 Preparing the working directory
