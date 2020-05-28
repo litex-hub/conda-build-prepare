@@ -135,6 +135,8 @@ def list_tags(tag_filter=None, **env):
 
 def sort_tags(tags, tag_filter=None):
     """
+    >>> sort_tags([])
+    []
     >>> sort_tags(['a', 'c', '1'])
     ['1', 'a', 'c']
     >>> sort_tags(['v1.101.3', 'v1.101.2', 'v1.100.11', 'hello'], tag_version_filter)
