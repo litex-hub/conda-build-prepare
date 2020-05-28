@@ -192,13 +192,22 @@ def git_tag_versions(**env):
     return list_tags(tag_version_filter, **env)
 
 
-def git_add_v0(**env):
-    pass
-
-
 def git_describe(**env):
     unshallow(**env)
     fetch_tags(**env)
+    all_tags = list_tags(None, **env)
+    relevant_tags = sort_tags(all_tags, tag_version_filter)
+    if len(relevant_tags) == 0:
+        latest = 'v0.0'
+        latest_commit = subprocess.check_output(['git', 'rev-list', '--max-parents=0', 'HEAD'], env=env).decode('utf-8').strip()
+    else:
+        latest = relevant_tags[-1]
+        latest_commit = subprocess.check_output(['git', 'rev-list', '-n', '1', latest], env=env).decode('utf-8').strip()
+
+    git_drop_tags(all_tags, **env)
+    git_add_tag(latest, latest_commit, **env)
+    describe = subprocess.check_output(['git', 'describe', '--tags'], env=env).decode('utf-8').strip()
+    return describe
 
 
 if __name__ == "__main__":
