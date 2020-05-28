@@ -153,7 +153,17 @@ def sort_tags(tags, tag_filter=None):
 
     return [x for _, x in to_sort]
 
+def git_add_tag(tag, sha, **env):
+    subprocess.check_call(['git', 'tag', '-a', tag, sha, f'-m"{tag}"'], env=env)
 
+def git_add_initial_tag(**env):
+    first_commit = subprocess.check_output(['git', 'rev-list', '--max-parents=0', 'HEAD'], env=env).decode('utf-8')
+    git_add_tag('v0.0', first_commit, env)
+
+
+def git_drop_tags(tags, **env):
+    for tag in tags:
+        subprocess.check_call(['git', 'tag', '-d', tag], env=env)
 
 
 def tag_version_filter(x):
