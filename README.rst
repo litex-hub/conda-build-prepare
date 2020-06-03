@@ -45,7 +45,7 @@ Cleaning up git tags
 
 The previous version of conda-related tooling used to rewrite git tags in order to let conda automatically detect the version via ``git-describe``.
 
-While we use the information extracted from the tags, the exact version is provided to ``recipe_append.yaml`` via the ``version`` key.
+While we use the information extracted from tags, the exact version is provided to ``recipe_append.yaml`` via the ``version`` key.
 
 The following version formats are supported:
 
