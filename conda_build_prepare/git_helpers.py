@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import subprocess
+import urllib.parse
 
 GITHUB_RE = re.compile("github.com[:/](?P<user>[^/\n]+)(/(?P<repo>[^/.].*?))?(.git|/|$)")
 
@@ -62,11 +64,13 @@ def extract_github_repo(url):
     """
     return extract_github_parts(url)[1]
 
+
 def remotes(direction):
     if direction not in ["fetch", "pull"]:
         return None
     remotes = subprocess.check_output( ['git', 'remote', '-v']).decode('utf-8').strip().split("\n")
     return [i for i in remotes if direction in i]
+
 
 def upstream(**env):
     """Get 'upstream' URL for the git repository."""
@@ -127,89 +131,151 @@ def fetch_tags(**env):
     subprocess.check_call(['git', 'fetch', '--tags'], env=env)
 
 
-def list_tags(tag_filter=None, **env):
-    tags = subprocess.check_output(
-        ['git', 'tag', '--list'], env=env).decode('utf-8')
-
-    return sort_tags(tags.splitlines(), tag_filter)
-
-def sort_tags(tags, tag_filter=None):
-    """
-    >>> sort_tags([])
-    []
-    >>> sort_tags(['a', 'c', '1'])
-    ['1', 'a', 'c']
-    >>> sort_tags(['v1.101.3', 'v1.101.2', 'v1.100.11', 'hello'], tag_version_filter)
-    ['v1.100.11', 'v1.101.2', 'v1.101.3']
-    """
-    if tag_filter is None:
-        tag_filter = lambda x: x
-
-    to_sort = []
-    for x in tags:
-        sort_key = tag_filter(x)
-        if sort_key is None:
-            continue
-        to_sort.append((sort_key, x))
-    to_sort.sort()
-
-    return [x for _, x in to_sort]
-
-def git_add_tag(tag, sha, **env):
-    subprocess.check_call(['git', 'tag', '-a', tag, sha, f'-m"{tag}"'], env=env)
-
-def git_add_initial_tag(**env):
-    first_commit = subprocess.check_output(['git', 'rev-list', '--max-parents=0', 'HEAD'], env=env).decode('utf-8')
-    git_add_tag('v0.0', first_commit, env)
+def _call_custom_git_cmd(git_repo, cmd_string):
+    cmd = cmd_string.split()
+    if cmd[0] != 'git':
+        cmd.insert(0, 'git')
+    return subprocess.check_output(cmd, cwd=git_repo).decode('utf-8').strip()
 
 
-def git_drop_tags(tags, **env):
-    for tag in tags:
-        subprocess.check_call(['git', 'tag', '-d', tag], env=env)
+def list_merged_tags(git_repo):
+    # Tags are sorted by their dates
+    tags = _call_custom_git_cmd(git_repo,
+            'tag --list --sort=taggerdate --merged HEAD').splitlines()
+    return tags
 
 
-def tag_version_filter(x):
-    """
-    >>> tag_version_filter('random') is None
-    True
-    >>> tag_version_filter('v1.2.3')
-    (1, 2, 3)
-    >>> tag_version_filter('v0.0.0')
-    (0, 0, 0)
-    >>> tag_version_filter('v0.10.123')
-    (0, 10, 123)
-    """
-    if not x.startswith('v'):
-        return
-    v = []
-    for b in x[1:].split('.'):
-        try:
-            v.append(int(b))
-        except ValueError:
-            v.append(b)
-    return tuple(v)
+def _set_git_config(git_repo, setting, value):
+    _call_custom_git_cmd(git_repo, f'config {setting} {value}')
+
+def _unset_git_config(git_repo, setting):
+    _call_custom_git_cmd(git_repo, f'config --unset {setting}')
+
+class GitUserContext:
+    def __init__(self, git_repo, name, email):
+        self._name = name
+        self._email = email
+        self._repo = git_repo
+
+    def __enter__(self):
+        _set_git_config(self._repo, 'user.name', self._name)
+        _set_git_config(self._repo, 'user.email', self._email)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        _unset_git_config(self._repo, 'user.name')
+        _unset_git_config(self._repo, 'user.email')
 
 
-def git_tag_versions(**env):
-    return list_tags(tag_version_filter, **env)
-
-
-def git_describe(**env):
-    unshallow(**env)
-    fetch_tags(**env)
-    all_tags = list_tags(None, **env)
-    relevant_tags = sort_tags(all_tags, tag_version_filter)
-    if len(relevant_tags) == 0:
-        latest = 'v0.0'
-        latest_commit = subprocess.check_output(['git', 'rev-list', '--max-parents=0', 'HEAD'], env=env).decode('utf-8').strip()
+def git_add_tag(git_repo, tag, sha, temp_user=True):
+    git_cmd = f'tag -a {tag} {sha} -m"{tag}"'
+    if temp_user:
+        with GitUserContext(git_repo, 'conda-build-prepare',
+                'conda-build-prepare@github.com'):
+            _call_custom_git_cmd(git_repo, git_cmd)
     else:
-        latest = relevant_tags[-1]
-        latest_commit = subprocess.check_output(['git', 'rev-list', '-n', '1', latest], env=env).decode('utf-8').strip()
+        _call_custom_git_cmd(git_repo, git_cmd)
+    print(f"Successfully tagged '{sha}' object as '{tag}'")
 
-    git_drop_tags(all_tags, **env)
-    git_add_tag(latest, latest_commit, **env)
-    describe = subprocess.check_output(['git', 'describe', '--tags'], env=env).decode('utf-8').strip()
-    return describe
+
+def git_add_initial_tag(git_repo, temp_user=True):
+    first_commit = _call_custom_git_cmd(git_repo, 'rev-list --max-parents=0 HEAD')
+    git_add_tag(git_repo, 'v0.0', first_commit, temp_user)
+
+
+def git_drop_tag(git_repo, tag):
+    _call_custom_git_cmd(git_repo, f'tag -d {tag}')
+
+
+def tag_extract_version(tag):
+    """
+    >>> tag_extract_version('random') is None
+    True
+    >>> tag_extract_version('random-1.23.4')
+    'v1.23.4'
+    >>> tag_extract_version('random0.5')
+    'v0.5'
+    >>> tag_extract_version('random-a.b.c') is None
+    True
+    >>> tag_extract_version('random-5') is None
+    True
+    >>> tag_extract_version('0.78.9random')
+    'v0.78.9'
+    """
+    version_spec = r"""[0-9]+[_.][0-9]+   # required major and minor
+                       ([_.][0-9])?       # optional one-digit micro
+                       ([._\-]rc[0-9]+)?  # optional rc with number"""
+
+    version_search = re.search(version_spec, tag, re.VERBOSE)
+    if version_search is None:
+        return None
+    else:
+        version_found = version_search.group(0)
+        return f'v{version_found}'
+
+
+def git_rewrite_tags(git_repo):
+    print(f'\nRewriting tags in "{os.path.abspath(git_repo)}"...\n')
+
+    no_version_tag = True
+    all_tags = list_merged_tags(git_repo)
+    # Set user only once for all git_add_tag calls (needs temp_user=False)
+    with GitUserContext(git_repo, 'conda-build-prepare',
+            'conda-build-prepare@github.com'):
+        for tag in all_tags:
+            tag_version = tag_extract_version(tag)
+            if tag_version is None:
+                git_drop_tag(git_repo, tag)
+            else:
+                if tag_version != tag:
+                    tag_commit = _call_custom_git_cmd(git_repo, f'rev-list -n 1 {tag}')
+                    git_drop_tag(git_repo, tag)
+                    git_add_tag(git_repo, tag_version, tag_commit, temp_user=False)
+                no_version_tag = False
+        if no_version_tag:
+            git_add_initial_tag(git_repo, temp_user=False)
+
+
+def git_describe(git_repo):
+    return _call_custom_git_cmd(git_repo, f'describe --long --tags')
+
+
+def git_clone(url, parent_dir, dir_name=None):
+    assert os.path.exists(parent_dir)
+
+    if dir_name is None:
+        dir_name = extract_github_repo(url)
+        # If not a GitHub URL, just get the last part (excluding .git)
+        if dir_name is None:
+            dir_name = re.search(r'.+/([^/]+)(.git)?', url).groups()[0]
+
+    repo_path = os.path.join(parent_dir, dir_name)
+
+    assert not os.path.exists(repo_path)
+    _call_custom_git_cmd(None, f'clone {url} {repo_path}')
+
+    return repo_path
+
+
+def git_clone_relative_submodules(git_repo, git_url):
+    gitmodules_path = os.path.join(git_repo, '.gitmodules')
+
+    if os.path.exists(gitmodules_path):
+        with open(gitmodules_path, 'r') as f:
+            gitmodules = f.read()
+        # The URLs are stripped from starting '../' for urljoin to work
+        # properly; oherwise two parts of the git_url are substituted
+        rel_modules = re.findall('url = \.\./(\S+)', gitmodules)
+        for rel_module in rel_modules:
+            module_url = urllib.parse.urljoin(git_url, rel_module)
+            repo_parent = os.path.dirname(git_repo)
+
+            # rel_module is passed to make sure cloning destination
+            # directory will have this exact name (e.g. .git suffix)
+            git_clone(module_url, repo_parent, rel_module)
+
+
+def git_checkout(git_repo, revision):
+    _call_custom_git_cmd(git_repo, f'checkout {revision}')
 
 
 if __name__ == "__main__":
