@@ -77,7 +77,7 @@ def write_metadata(package_dir):
         metadata['extra']['build_type'] = 'travis',
         metadata['extra']['travis'] = {
             'job_id': int(os.environ.get('TRAVIS_JOB_ID', repr(-1))),
-            'job_num': int(os.environ.get('TRAVIS_JOB_NUMBER', repr(-1))),
+            'job_num': os.environ.get('TRAVIS_JOB_NUMBER', repr(-1)),
             'type': os.environ.get('TRAVIS_EVENT_TYPE'),
         }
         # Override details from git with data from travis
