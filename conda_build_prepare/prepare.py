@@ -57,14 +57,14 @@ def write_metadata(package_dir):
         }
     }
 
-    # Try and get the recipe metadata from git
     def _try_to_get_git_output(cmd_string):
         try:
             return _call_custom_git_cmd('.', cmd_string)
         except:
-            return 'ERROR'
+            return 'GIT_ERROR'
 
-    metadata['extra']['recipe'] = {
+    # Get details of the repository containing the recipe
+    metadata['extra']['recipe_source'] = {
         'repo':     _try_to_get_git_output('remote get-url origin'),
         'branch':   _try_to_get_git_output('rev-parse --abbrev-ref HEAD'),
         'commit':   _try_to_get_git_output('rev-parse HEAD'),
@@ -74,17 +74,20 @@ def write_metadata(package_dir):
 
     # Fill in metadata from travis environment
     if os.environ.get('TRAVIS', 'false') == 'true':
-        metadata['extra']['build_type'] = 'travis',
+        metadata['extra']['build_type'] = 'travis'
         metadata['extra']['travis'] = {
             'job_id': int(os.environ.get('TRAVIS_JOB_ID', repr(-1))),
             'job_num': os.environ.get('TRAVIS_JOB_NUMBER', repr(-1)),
             'type': os.environ.get('TRAVIS_EVENT_TYPE'),
         }
         # Override details from git with data from travis
-        metadata['extra']['recipe'] = {
+        metadata['extra']['recipe_source'] = {
             'repo': 'https://github.com/' + get_travis_slug(),
             'branch': os.environ.get('TRAVIS_BRANCH', '?'),
             'commit': os.environ.get('TRAVIS_COMMIT', '?'),
+            # Leave those two as they were before
+            'describe': metadata['extra']['recipe_source']['describe'],
+            'date': metadata['extra']['recipe_source']['date'],
         }
 
     toolchain_arch = os.environ.get('TOOLCHAIN_ARCH')
