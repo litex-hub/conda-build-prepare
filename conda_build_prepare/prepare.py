@@ -116,7 +116,7 @@ def prepare_directory(package_dir, dest_dir):
     prescript_path = os.path.join(dest_dir, prescript_name)
     if os.path.exists(prescript_path):
         print('\nPrescript file found! Executing...\n')
-        subprocess.check_call(['bash', prescript_path], env=os.environ, cwd=dest_dir)
+        subprocess.check_call(['bash', prescript_path], env=os.environ, cwd=dest_dir, shell=True)
         print('\nFinished executing prescript.\n')
 
     write_metadata(dest_dir)
