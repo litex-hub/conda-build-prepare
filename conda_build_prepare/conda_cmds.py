@@ -306,7 +306,7 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
     # Embed script_envs in the environment
     print("Embedding 'build/script_env' variables in the environment...")
 
-    if 'script_env' in meta['build'].keys():
+    if 'build' in meta.keys() and 'script_env' in meta['build'].keys():
         env_vars = meta['build']['script_env']
         assert type(env_vars) is list, env_vars
 
