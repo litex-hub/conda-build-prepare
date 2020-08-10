@@ -332,6 +332,9 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
         meta_file.write('# Rendered by the conda-build-prepare\n')
         meta_file.write('# Original meta.yaml can be found at the end of this file\n')
         meta_file.write('\n')
+        # Save the 'package' section first (Windows needs it)
+        pkg_section = { 'package': meta.pop('package') }
+        meta_file.write(yaml.safe_dump(pkg_section))
         meta_file.write(yaml.safe_dump(meta))
         meta_file.write('\n')
         meta_file.write('# Original meta.yaml:\n')
