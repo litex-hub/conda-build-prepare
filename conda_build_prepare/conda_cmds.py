@@ -7,6 +7,7 @@ import re
 import io
 import shutil
 import tempfile
+import sys
 
 from prepare import get_local_channels, get_package_condarc
 from git_helpers import git_checkout, git_clone, git_describe, \
@@ -160,7 +161,7 @@ def _call_conda_cmd_in_env(cmd_string, env_path):
     assert os.path.isdir(env_path), env_path
 
     return subprocess.check_output(f'conda run -p {env_path} {cmd_string}'
-            .split(), encoding='utf-8').strip()
+            .split(), encoding='utf-8', env=os.environ).strip()
 
 _modification_line = '# Modified by the conda-build-prepare\n'
 
@@ -335,11 +336,28 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
         # Save the 'package' section first (Windows needs it)
         pkg_section = { 'package': meta.pop('package') }
         meta_file.write(yaml.safe_dump(pkg_section))
+        # Convert local git_urls with cygpath, if available
+        if sys.platform in ['cygwin', 'msys', 'win32']:
+            if type(meta['source']) is list:
+                for src in meta['source']:
+                    _try_cygpath_on_git_url(src)
+            else:
+                _try_cygpath_on_git_url(meta['source'])
         meta_file.write(yaml.safe_dump(meta))
         meta_file.write('\n')
         meta_file.write('# Original meta.yaml:\n')
         meta_file.write('#\n')
         meta_file.writelines(list(map(lambda line: '#' + line, meta_lines)))
+
+def _try_cygpath_on_git_url(src_dict):
+    try:
+        if 'git_url' in src_dict.keys() and os.path.isdir(src_dict['git_url']):
+            src_dict['git_url'] = subprocess.check_output(
+                    ['cygpath', '-a', src_dict['git_url']],
+                    encoding='utf-8', env=os.environ).strip()
+    except FileNotFoundError:  # No cygpath
+        pass
+
 
 if __name__ == "__main__":
     import doctest

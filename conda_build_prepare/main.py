@@ -2,7 +2,6 @@
 import argparse
 import os
 import sys
-import platform
 
 from conda_cmds import prepare_environment, prepare_recipe, restore_config_files
 from prepare import prepare_directory
@@ -38,7 +37,7 @@ if __name__ == '__main__':
 
     # Those will be installed in the prepared environment
     env_packages = 'python=3.7 conda-build conda-verify anaconda-client jinja2 pexpect'
-    if platform.system() != 'Windows':
+    if sys.platform.startswith('linux') or sys.platform == 'darwin':
         env_packages += ' ripgrep'
     # Those will be applied in the prepared environment
     env_settings = {
