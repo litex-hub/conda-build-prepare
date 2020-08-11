@@ -7,7 +7,7 @@ import subprocess
 import shutil
 import yaml
 import datetime
-import platform
+import sys
 
 from git_helpers import remotes, extract_github_user, _call_custom_git_cmd
 from travis import get_travis_slug
@@ -36,7 +36,15 @@ def get_local_channels():
 # condarc_$OS has precedence, if exists and '$OS' matches the current OS
 # (it can be condarc_linux, condarc_macos or condarc_windows)
 def get_package_condarc(recipe_dir):
-    cur_os = platform.system().lower().replace('darwin', 'macos')
+    if sys.platform.startswith('linux'):
+        cur_os = 'linux'
+    elif sys.platform == 'darwin':
+        cur_os = 'macos'
+    elif sys.platform in ['cygwin', 'msys', 'win32']:
+        cur_os = 'windows'
+    else:
+        return None
+
     condarc = os.path.join(recipe_dir, 'condarc')
     condarc_os = condarc + '_' + cur_os
 
@@ -116,7 +124,9 @@ def prepare_directory(package_dir, dest_dir):
     prescript_path = os.path.join(dest_dir, prescript_name)
     if os.path.exists(prescript_path):
         print('\nPrescript file found! Executing...\n')
-        subprocess.check_call(['bash', prescript_path], env=os.environ, cwd=dest_dir, shell=True)
+        subprocess.check_call(['bash', prescript_path], env=os.environ, cwd=dest_dir,
+                # shell=True only on Windows
+                shell=sys.platform in ['cygwin', 'msys', 'win32'])
         print('\nFinished executing prescript.\n')
 
     write_metadata(dest_dir)
