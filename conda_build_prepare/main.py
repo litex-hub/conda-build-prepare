@@ -33,6 +33,7 @@ if __name__ == '__main__':
     recipe_dir = os.path.join(args.directory, 'recipe')
     env_dir = os.path.join(args.directory, 'conda-env')
     git_dir = os.path.join(args.directory, 'git-repos')
+
     prepare_directory(args.package, recipe_dir)
 
     # Those will be installed in the prepared environment
@@ -59,5 +60,7 @@ if __name__ == '__main__':
     print("To build the package in the prepared environment, run:")
     print(f"  conda activate {os.path.relpath(env_dir)}")
     print(f"  conda build {os.path.relpath(recipe_dir)}")
+    print("or:")
+    print(f"  conda run -p {os.path.relpath(env_dir)} conda build {os.path.relpath(recipe_dir)}")
     print()
 
