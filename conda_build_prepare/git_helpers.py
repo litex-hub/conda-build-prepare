@@ -200,10 +200,16 @@ def tag_extract_version(tag):
     True
     >>> tag_extract_version('0.78.9random')
     'v0.78.9'
+    >>> tag_extract_version('50_78-91-xrandom')
+    'v50_78-91'
+    >>> tag_extract_version('0-78-91-rc5_random')
+    'v0-78-91-rc5'
+    >>> tag_extract_version('7_8_rc12-lessrandom')
+    'v7_8_rc12'
     """
-    version_spec = r"""[0-9]+[_.][0-9]+   # required major and minor
-                       ([_.][0-9])?       # optional one-digit micro
-                       ([._\-]rc[0-9]+)?  # optional rc with number"""
+    version_spec = r"""[0-9]+[_.\-][0-9]+  # required major and minor
+                       ([_.\-][0-9]+)?     # optional micro
+                       ([._\-]rc[0-9]+)?   # optional release candidate"""
 
     version_search = re.search(version_spec, tag, re.VERBOSE)
     if version_search is None:
