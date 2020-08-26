@@ -3,8 +3,8 @@ import argparse
 import os
 import sys
 
-from conda_cmds import prepare_environment, prepare_recipe, restore_config_files
-from prepare import prepare_directory
+from .conda_cmds import prepare_environment, prepare_recipe, restore_config_files
+from .prepare import prepare_directory
 
 def existingDir(dir_name):
     if dir_name == 'restore':

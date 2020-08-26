@@ -9,8 +9,8 @@ import shutil
 import tempfile
 import sys
 
-from prepare import get_local_channels, get_package_condarc
-from git_helpers import git_checkout, git_clone, git_describe, \
+from .prepare import get_local_channels, get_package_condarc
+from .git_helpers import git_checkout, git_clone, git_describe, \
         git_rewrite_tags, git_add_tag, git_clone_relative_submodules
 
 def find(key, dictionary):

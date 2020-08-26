@@ -9,12 +9,10 @@ import yaml
 import datetime
 import sys
 
-from git_helpers import remotes, extract_github_user, _call_custom_git_cmd
-from travis import get_travis_slug
+from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd
+from .travis import get_travis_slug
 
 from collections import OrderedDict
-
-#import conda
 
 def get_local_channels():
     local_channels = OrderedDict()
