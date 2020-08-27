@@ -120,13 +120,14 @@ def create_env(package_dir):
 
 
 def _prepare_single_source(git_repos_dir, src):
-    if 'git_url' not in src.keys() or 'git_rev' not in src.keys():
+    if 'git_url' not in src.keys():
         # Not a git source; won't be prepared and is not modified
         return src
     else:
         # Clone, checkout the repository and set local path as git_url
         src_path = git_clone(src['git_url'], git_repos_dir)
-        git_checkout(src_path, src['git_rev'])
+        if 'git_rev' in src.keys():
+            git_checkout(src_path, src['git_rev'])
         git_clone_relative_submodules(src_path, src['git_url'])
         src['git_url'] = os.path.abspath(src_path)
         return src
