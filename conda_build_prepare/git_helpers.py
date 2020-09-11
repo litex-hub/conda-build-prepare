@@ -210,7 +210,7 @@ def tag_extract_version(tag):
     version_spec = r"""[0-9]+[_.\-][0-9]+  # required major and minor
                        ([_.\-][0-9]+)?     # optional micro
                        ([_.\-][0-9]+)?     # optional extra number
-                       ([._\-]rc[0-9]+)?   # optional release candidate"""
+                       ([._\-]*rc[0-9]+)?  # optional release candidate"""
 
     version_search = re.search(version_spec, tag, re.VERBOSE)
     if version_search is None:
