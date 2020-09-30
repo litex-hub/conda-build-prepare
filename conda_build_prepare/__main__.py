@@ -37,7 +37,7 @@ if __name__ == '__main__':
     prepare_directory(args.package, recipe_dir)
 
     # Those will be installed in the prepared environment
-    env_packages = 'python=3.7 conda-build=3.18.11 conda-verify anaconda-client jinja2 pexpect'
+    env_packages = 'python=3.7 conda-build conda-verify anaconda-client jinja2 pexpect'
     if sys.platform.startswith('linux') or sys.platform == 'darwin':
         env_packages += ' ripgrep'
     # Those will be applied in the prepared environment
