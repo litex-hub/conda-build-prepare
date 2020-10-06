@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument("package", action="store", type=existingDir, help="Target package directory; use 'restore' to restore commented out conda configuration files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Add more verbosity to output")
     parser.add_argument("--dir", action="store", required=True, type=newDir, dest="directory", help="Use DIRECTORY to store generated files and cloned repository")
+    parser.add_argument("--channels", action="store", required=False, metavar="CHANNEL", nargs="+", help="Each CHANNEL will be added to the environment's '.condarc' (with the last one on top)")
     args = parser.parse_args()
 
     os.mkdir(args.directory)
@@ -48,6 +49,9 @@ if __name__ == '__main__':
                 'always_yes': 'yes',
                 },
             }
+    if args.channels is not None:
+        env_settings['prepend'] = { 'channels': args.channels }
+
     prepare_environment(recipe_dir, env_dir, env_packages, env_settings)
 
     prepare_recipe(recipe_dir, git_dir, env_dir)
