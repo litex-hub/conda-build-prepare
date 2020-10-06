@@ -47,10 +47,6 @@ if __name__ == '__main__':
                 'channel_priority': 'strict',
                 'always_yes': 'yes',
                 },
-            'prepend': {
-                'pkgs_dirs': '~/.conda/pkg',
-                'channels': ['litex-hub', 'antmicro'],
-                },
             }
     prepare_environment(recipe_dir, env_dir, env_packages, env_settings)
 
