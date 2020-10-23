@@ -1,0 +1,31 @@
+{% set version = '0.6.9' %}
+
+package:
+  name: wishbone-tool
+  version: {{ version }}
+
+source:
+  url: https://github.com/litex-hub/wishbone-utils/archive/v{{ version }}.tar.gz
+  sha256: 12db986ebf5912a648273a99736402f6626f46e291f55025b3c101a37799fda6
+
+build:
+  # number: 201803050325
+  number: {{ environ.get('DATE_NUM') }}
+  # string: 20180305_0325
+  string: {{ environ.get('DATE_STR') }}
+  script_env:
+    - CI
+    - TRAVIS
+
+requirements:
+  build:
+    - rust
+
+test:
+  commands:
+    - wishbone-tool --help
+
+about:
+  home: https://https://github.com/litex-hub/wishbone-utils/tree/master/wishbone-tool
+  license: BSD2-Clause
+  summary: 'All-in-one Wishbone binary, available for a variety of platforms. Useful for interacting with the internal Wishbone bridge on a device.'

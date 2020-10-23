@@ -3,22 +3,78 @@ conda-build-prepare
 
 This repository contains a tool for unified conda package building.
 
-The ``conda-build-prepare`` tool creates almost completely fixed package recipe, conda environment and git repositories by rendering metadata and embedding crucial data inside of them thus making the package building much more consistent regardless of the building time and environment.
+The ``conda-build-prepare`` tool creates almost completely fixed package recipe, conda environment and git repositories by rendering metadata and embedding crucial data inside of them.
+It makes the package building much more consistent regardless of the building time and environment.
 
-It also extracts data from the repository containing the recipe and populates the ``recipe_append.yaml`` file, which is automatically added to the metadata (as of ``conda-build`` v3.0).
+The data is also extracted from the repository containing the recipe to populate the ``recipe_append.yaml`` file, which is automatically added to the metadata (as of ``conda-build`` v3.0).
 
-After running the tool, to build the package in the prepared environment, run::
+Installation
+------------
 
-  conda activate $DIRECTORY/conda-env
-  conda build $DIRECTORY/recipe
+``conda-build-prepare`` can be installed using ``pip`` with the repository address and revision (``@a4c185e467bfa76d90b378dec0357b97faa75cfd`` is the latest development commit right now):
 
-or::
+.. code-block:: bash
+   :name: install_cbp
 
-  conda run -p $DIRECTORY/conda-env conda build $DIRECTORY/recipe
+   python3 -m pip install git+https://github.com/antmicro/conda-build-prepare@a4c185e467bfa76d90b378dec0357b97faa75cfd#egg=conda-build-prepare
 
-(``$DIRECTORY`` is the argument passed to the ``conda-build-prepare`` using ``--out``).
+Usage
+-----
 
-Stages of preparation:
+After installing ``conda-build-prepare`` or cloning the repository and using repository root as working directory, run:
+
+.. code-block:: bash
+   :name: prepare_package
+
+   python3 -m conda_build_prepare --dir $DIRECTORY $PACKAGE
+
+to prepare the *PACKAGE* recipe and store output files in a *DIRECTORY*.
+
+After running the tool, the package can be built using the prepared environment and recipe using these commands:
+
+.. code-block:: bash
+   :name: build_package
+
+   conda activate $DIRECTORY/conda-env
+   conda build $DIRECTORY/recipe
+   conda deactivate  # restores previous conda environment
+
+*DIRECTORY* can be virtually any name but it has to match the ``--dir`` argument passed to prepare the package.
+
+Building the example package
+----------------------------
+
+``wishbone-tool`` recipe is included for testing in this repository under the ``test`` directory.
+The package can be successfully built with the aforementioned commands after specifying recipe path with ``PACKAGE`` variable and using any ``DIRECTORY``, e.g.:
+
+.. code-block:: bash
+   :name: set_envs
+
+   PACKAGE=test/wishbone-tool
+   DIRECTORY=X
+
+Specifying additional channels
+------------------------------
+
+Additional channels can be specified by using ``--channels CHANNEL [CHANNEL ...]`` option.
+Each ``CHANNEL`` will be added to the ``$DIRECTORY/conda-env/.condarc``.
+The last one used will be the most important channel for ``conda-build`` during preparing and building.
+
+Restoring original conda configurations
+---------------------------------------
+
+``conda-build-prepare`` "neutralizes" conda configuration files by commenting them out to make environment as reproducible as it's possible.
+The original configuration can be restored later using:
+
+.. code-block:: bash
+   :name: restore_condarcs
+
+   python3 -m conda_build_prepare restore
+
+How conda-build-prepare works
+-----------------------------
+
+Preparation process consists of:
 
 #. preparing the working directory,
 #. extracting the build environment information,
@@ -28,93 +84,90 @@ Stages of preparation:
 #. preparing git tags for better version description,
 #. embedding script_env variables.
 
-Options::
-
-    package_dir         Path to the directory containing ``meta.yaml`` of the package
-    --out=DIRECTORY     Use DIRECTORY to store generated files on which ``conda build`` should be run
-    -v, --verbose       Add more verbosity to output
-
 Preparing the working directory
--------------------------------
++++++++++++++++++++++++++++++++
 
-The ``--out`` parameter value (``$DIRECTORY``) is used as a target directory name, in which ``conda-env``, ``git-repos`` and ``recipe`` directories will be created.
-The directory specified as a ``package_dir`` will be copied as the ``$DIRECTORY/recipe`` directory.
+The argument passed to ``--dir`` (``$DIRECTORY``) is used as a target directory name, in which ``conda-env``, ``git-repos`` and ``recipe`` directories will be created.
+The directory specified as a ``$PACKAGE`` will be copied as the ``$DIRECTORY/recipe`` directory.
 
-While all packages are expected to have a ``meta.yaml``, the ``prescript.${TOOLCHAIN_ARCH}.sh`` can be used to download or generate it.
-It is executed right after copying the ``package_dir``.
+While all packages are expected to have a ``meta.yaml``, a *prescript* file (``prescript.${TOOLCHAIN_ARCH}.sh``) can be used to download or generate it.
+*Prescript* file is executed right after copying the ``$PACKAGE``.
 
 Extracting the build environment information
---------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++
 
-Conda packages are provided with the following metadata:
+Additional metadata is added based on the build environment:
 
-#. repository of the original recipe/build scripts,
-#. type of environment: local build (default), Travis CI, etc.,
-#. additional Travis build info (following the https://github.com/SymbiFlow/conda-packages/blob/master/conda-meta-extra.sh).
+#. repository containing the recipe: it's address, branch, commit and result of ``git describe``
+#. type of the environment: local build (default), Travis CI or Github Actions,
+#. additional information from Travis or Github Actions like event that started the build, job/run id etc.,
+#. ``TOOLCHAIN_ARCH`` it's being prepared for (if such variable is set),
+#. package's additional ``condarc`` contents (if any ``condarc`` is used).
 
 Preparing the build environment
--------------------------------
++++++++++++++++++++++++++++++++
 
-Conda environment created in ``$DIRECTORY/conda-env`` will contain basic packages necessary for building and rendering metadata, i.e. ``python``, ``conda-build``, ``conda-verify``, ``anaconda-client``, ``jinja2``, ``pexpect`` and ``ripgrep`` (``ripgrep`` only on Linux and macOS).
+Conda environment created in ``$DIRECTORY/conda-env`` will contain basic packages necessary for building and rendering metadata. 
+Precisely, those basic packages are: ``anaconda-client``, ``conda-build``, ``conda-verify``, ``jinja2``, ``pexpect``, ``python`` and ``ripgrep`` (``ripgrep`` only on Linux and macOS).
 
-After creating this environment, the ``conda-build-prepare`` will look for all ``condarc`` files influencing it.
+In the next step, ``conda-build-prepare`` will look for all ``condarc`` files influencing freshly created environment.
 All such files found by the tool will be "neutralized" by commenting them out.
-Their paths are added to the ``conda-build-prepare_srcs.txt`` inside the system's temp dir (``tempfile.gettempdir()``) for restoring.
+Paths are added to the ``conda-build-prepare_srcs.txt`` file inside the system's temp dir (``tempfile.gettempdir()``) for the eventual future restoration, which can be triggered by the user.
 
-The commented out user or global ``condarc`` files can be restored by running ``conda-build-prepare`` with the word ``restore`` instead of a ``package_dir``.
-
-Then, package's condarc (``condarc``, ``condarc_linux``, ``condarc_macos`` or ``condarc_windows`` from ``package_dir``) will be set as the most important one (``conda-env/condarc``) and other basic settings will be applied to this environment.
+Then, package's condarc (``condarc``, ``condarc_linux``, ``condarc_macos`` or ``condarc_windows`` from ``$PACKAGE``) will be set as the most important one (``conda-env/condarc``) and other basic settings will be applied to that environment.
 
 Rendering the recipe
---------------------
+++++++++++++++++++++
 
 The goal is to set each package used for building with specific version.
-This will allow to always use the same packages during building even if some newer version of any of the required ``build`` or ``host`` package emerges.
+This will allow to always use the same packages during building even if any of the required ``build`` or ``host`` package gets updated in used channels.
 
 Conda environment created in ``$DIRECTORY/conda-env`` is used for rendering the recipe to ensure the same settings with future building (channels, channel priority etc.).
 
-After all of the tool's stages are completed, the rendered version of the recipe will replace ``meta.yaml`` that was there before rendering.
-Contents of the original ``meta.yaml`` will be placed at the end of the file as a comment.
+Rendered version of the recipe will replace the original ``meta.yaml`` copied from the ``$PACKAGE``.
+Contents of the original ``meta.yaml`` will be left at the end of the new file as a comment.
 
-``recipe_append.yaml`` will be incorporated in the rendered recipe automatically by the ``conda render``.
+``recipe_append.yaml`` is incorporated in the rendered recipe automatically by the ``conda render``.
 
 Cloning git source repositories
--------------------------------
++++++++++++++++++++++++++++++++
 
-Due to problems with Conda's own repository management [TODO: what exactly?], ``conda-build-prepare`` clones the repository by itself and allows ``conda build`` to operate on the prefetched copy.
+Due to problems with Conda's own repository management [TODO: what exactly?], ``conda-build-prepare`` clones the repository and changes the recipe for ``conda-build`` to operate on the cloned one.
 
 Each ``git_url`` source repository is cloned to the ``$DIRECTORY/git-repos`` directory.
-The relative submodules of those cloned repositories (where submodule's url starts with ``../``) will also be cloned.
-It's because ``git`` will expect them in the same parent directory for initializing the submodule.
+The relative submodules of those repositories (where submodule's url starts with ``../``) will also get cloned because ``git`` will search them in the same parent directory during building.
 
-The resulting recipe will have each ``git_url`` replaced with the local path to a repository cloned from the original ``git_url``.
+The resulting recipe will have each ``git_url`` replaced with the local path to a repository cloned from the original repository URL.
 
 Preparing git tags for better version description
--------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The previous version of conda-related tooling used to rewrite git tags in order to let conda automatically detect the version via ``git-describe``.
 
 The ``conda-build-prepare`` tool makes version format unified among various packages.
 This is achieved by checking recipe source's git tags for any version-like part and modifying it by leaving only this version-like part prefixed with a ``v`` after rewriting.
 
-The following version formats are supported:
+The following python code describes supported version formats best::
 
-- ``vX.Y``,
-- ``vX.Y.Z``,
-- ``vX.Y.Z-rcQ``,
-- all of the above variations with punctuation replaced with dashes or underscores.
+    version_spec = r"""[0-9]+[_.\-][0-9]+  # required major and minor
+                       ([_.\-][0-9]+)?     # optional micro
+                       ([_.\-][0-9]+)?     # optional extra number
+                       ([._\-]*rc[0-9]+)?  # optional release candidate"""
 
-If no valid tags are found, a v0.0 tag is created on the oldest commit in the repo.
+Therefore version specifier consists of two to four numbers separated from each other and an optional release candidate number after ``rc`` which can be separated (e.g. ``2.1-rc2``).
+Each separator can be an underscore, a punctuation or a dash.
 
-After that, the package version will be set with the ``git describe`` result on such repository after replacing dashes with underscores because of the ``package/version`` key restrictions.
+If no valid tags are found, a ``v0.0`` tag is created on the oldest commit in the repository.
+
+Finally, the package version will be set with the ``git describe`` result on such repository.
+Any dashes in version will be replaced by underscores because of the conda's restrictions in setting ``package/version`` key.
 
 Embedding script_env variables
-------------------------------
+++++++++++++++++++++++++++++++
 
 The recipe can allow some environment variables to influence building through ``build/script_env`` key.
-To unify the building process, ``conda-build-prepare`` embeds all such variables inside the ``conda-env`` with the values they're set to at that time.
+To make building process reproducible, ``conda-build-prepare`` embeds all such variables inside the ``conda-env`` with the values found in the current shell environment during preparation.
+Such embedded variables will be later set in the shell while activating conda environment.
 
-Such embedded variables are set while activating conda environment (or runnning ``conda run``).
-If environment already has those variables set, the embedded variables will replace them.
+If during this stage there are some ``script_env`` variables not set to any value in shell, they will be removed from the ``script_env`` to never influence building this package.
 
-If during this stage there are some ``script_env`` variables not set with any value in the environment, they will be removed from the ``script_env`` to never influence building this package.
