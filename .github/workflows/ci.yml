@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install conda
+        uses: s-weigand/setup-conda@v1
+        with:
+          python-version: 3.7
+          
+      - name: Create python3 link on Windows
+        if: matrix.os == 'windows-latest'
+        run: ln -s /c/Miniconda/python /c/Miniconda/python3
+
+      - name: Install pyyaml
+        run: conda install -y pyyaml
+      
+      - name: Install tuttest
+        run: python -m pip install git+https://github.com/antmicro/tuttest@12ba1cf02ea327f99098005692d4311f0e02cda4#tuttest
+      
+      - name: Test prepare_package snippet
+        run: |
+          set -x
+          eval "$(tuttest README.rst set_envs)"
+          eval "$(tuttest README.rst prepare_package)"
+          tar cf ${DIRECTORY}.tar $DIRECTORY
+          
+      - name: Print rendered meta.yaml
+        run: |
+          set -x
+          eval "$(tuttest README.rst set_envs)"
+          cat $DIRECTORY/recipe/meta.yaml
+
+      - name: Test build_package snippet
+        run: |
+          set -x
+          eval "$(tuttest README.rst set_envs)"
+          eval "$(conda shell.bash hook 2>/dev/null)"
+          eval "$(tuttest README.rst build_package)"
+
+      - name: Upload built PACKAGE if build succeeded
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}_PACKAGE
+          path: '*/conda-env/conda-bld/*/*.tar.bz2'
+          # conda-build sometimes fail silently; this fails the build if there's no package and enables DIRECTORY upload
+          if-no-files-found: error
+        if: success()
+
+      - name: Compress DIRECTORY from before building if build failed
+        run: |
+          eval "$(tuttest README.rst set_envs)"
+          bzip2 ${DIRECTORY}.tar
+        if: failure()
+
+      - name: Upload DIRECTORY from before building if build failed
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}_DIRECTORY
+          path: '*.tar.bz2'
+        if: failure()
