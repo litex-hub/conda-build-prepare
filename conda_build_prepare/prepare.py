@@ -84,7 +84,7 @@ def write_metadata(package_dir):
         metadata['extra']['travis'] = {
             'job_id': int(os.environ.get('TRAVIS_JOB_ID', repr(-1))),
             'job_num': os.environ.get('TRAVIS_JOB_NUMBER', repr(-1)),
-            'type': os.environ.get('TRAVIS_EVENT_TYPE'),
+            'event': os.environ.get('TRAVIS_EVENT_TYPE'),
         }
         # Override details from git with data from travis
         metadata['extra']['recipe_source'] = {
@@ -95,6 +95,26 @@ def write_metadata(package_dir):
             'describe': metadata['extra']['recipe_source']['describe'],
             'date': metadata['extra']['recipe_source']['date'],
         }
+
+    # Fill in metadata from github_actions environment
+    if os.environ.get('GITHUB_ACTIONS', 'false') == 'true':
+        metadata['extra']['build_type'] = 'github_actions'
+        metadata['extra']['github_actions'] = {
+            'action_id': os.environ.get('GITHUB_ACTION'),
+            'run_id': os.environ.get('GITHUB_RUN_ID'),
+            'run_num': os.environ.get('GITHUB_RUN_NUMBER'),
+            'event': os.environ.get('GITHUB_EVENT_NAME'),
+        }
+        # Override details from git with data from github_actions
+        metadata['extra']['recipe_source'] = {
+            'repo': 'https://github.com/' + os.environ.get('GITHUB_REPOSITORY'),
+            'branch': os.environ.get('GITHUB_REF', '?'),
+            'commit': os.environ.get('GITHUB_SHA'),
+            # Leave those two as they were before
+            'describe': metadata['extra']['recipe_source']['describe'],
+            'date': metadata['extra']['recipe_source']['date'],
+        }
+
 
     toolchain_arch = os.environ.get('TOOLCHAIN_ARCH')
     if toolchain_arch is not None:
