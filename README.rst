@@ -3,8 +3,9 @@ conda-build-prepare
 
 This repository contains a tool for unified conda package building.
 
-The ``conda-build-prepare`` tool creates an almost completely fixed package recipe, conda environment and git repositories by rendering metadata and embedding crucial data inside of them.
-It makes the package building much more consistent regardless of the building time and environment.
+The ``conda-build-prepare`` tool renders an dynamic package recipe into a resloved package recipe, conda environment and git repositories.
+
+It is able to rendered metadata and embedding crucial data used inside a dynamic package recipe. Doing this rendering makes the package building much more consistent regardless of when or in which environment the building is done.
 
 The data is also extracted from the repository containing the recipe to populate the ``recipe_append.yaml`` file, which is automatically added to the metadata (as of ``conda-build`` v3.0).
 
