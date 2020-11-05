@@ -27,9 +27,10 @@ After installing ``conda-build-prepare`` or cloning the repository and using the
 .. code-block:: bash
    :name: prepare_package
 
-   python3 -m conda_build_prepare --dir $DIRECTORY $PACKAGE
+   python3 -m conda_build_prepare --dir $DIRECTORY -- $RECIPE
 
-to prepare the *PACKAGE* recipe and store output files in a *DIRECTORY*.
+to prepare the *RECIPE* and store output files in a *DIRECTORY* without specifying any additional channels or packages.
+The *RECIPE* argument needs to be separated with ``--`` in case it is preceded by some optional ``--channels`` or ``--packages`` argument.
 
 After running the tool, the package can be built using the prepared environment and recipe using the following commands:
 
@@ -46,12 +47,12 @@ Building the example package
 ----------------------------
 
 ``wishbone-tool`` recipe is included for testing in this repository in the ``test`` directory.
-The package can be successfully built with the aforementioned commands after specifying the recipe path with the ``PACKAGE`` variable and using any ``DIRECTORY``, e.g.:
+The package can be successfully built with the aforementioned commands after specifying the recipe path with the ``RECIPE`` variable and using any ``DIRECTORY``, e.g.:
 
 .. code-block:: bash
    :name: set_envs
 
-   PACKAGE=test/wishbone-tool
+   RECIPE=test/wishbone-tool
    DIRECTORY=X
 
 Specifying additional channels
@@ -60,6 +61,13 @@ Specifying additional channels
 Additional channels can be specified with the ``--channels CHANNEL [CHANNEL ...]`` option.
 Each ``CHANNEL`` will be added to the ``$DIRECTORY/conda-env/.condarc``.
 The last one used will be the most important channel for ``conda-build`` during preparation and building.
+
+Specifying additional packages
+------------------------------
+
+Additional packages can be specified with the ``--packages PACKAGE [PACKAGE ...]`` option.
+Each ``PACKAGE`` will be installed in the created ``$DIRECTORY/conda-env`` environment.
+The ``conda-build`` package is installed even if not specified with this option but it can be used to specify some precise version, e.g. ``--packages conda-build=3.20.3``.
 
 Restoring original conda configurations
 ---------------------------------------
@@ -89,10 +97,10 @@ Preparing the working directory
 +++++++++++++++++++++++++++++++
 
 The argument passed to ``--dir`` (``$DIRECTORY``) is used as a target directory name, in which the ``conda-env``, ``git-repos`` and ``recipe`` directories will be created.
-The directory specified as a ``$PACKAGE`` will be copied as the ``$DIRECTORY/recipe`` directory.
+The directory specified as a ``$RECIPE`` will be copied as the ``$DIRECTORY/recipe`` directory.
 
 While all packages are expected to have a ``meta.yaml``, a *prescript* file (``prescript.${TOOLCHAIN_ARCH}.sh``) can be used to download or generate it.
-*Prescript* file is executed right after copying the ``$PACKAGE``.
+*Prescript* file is executed right after copying the ``$RECIPE``.
 
 Extracting the build environment information
 ++++++++++++++++++++++++++++++++++++++++++++
@@ -115,7 +123,7 @@ In the next step, ``conda-build-prepare`` will look for all ``condarc`` files af
 All such files found by the tool will be "neutralized" by commenting them out.
 Paths are added to the ``conda-build-prepare_srcs.txt`` file inside the system's temp dir (``tempfile.gettempdir()``) for a possbible future restoration of the files, which can be triggered by the user.
 
-Then, the package's condarc (``condarc``, ``condarc_linux``, ``condarc_macos`` or ``condarc_windows`` from ``$PACKAGE``) will be set as the most important one (``conda-env/condarc``) and other basic settings will be applied to that environment.
+Then, the package's condarc (``condarc``, ``condarc_linux``, ``condarc_macos`` or ``condarc_windows`` from ``$RECIPE``) will be set as the most important one (``conda-env/condarc``) and other basic settings will be applied to that environment.
 
 Rendering the recipe
 ++++++++++++++++++++
@@ -125,7 +133,7 @@ This will allow using the same packages for building even if any of the required
 
 Conda environment created in ``$DIRECTORY/conda-env`` is used for rendering the recipe to ensure the same settings for future building (channels, channel priority etc.).
 
-The rendered version of the recipe will replace the original ``meta.yaml`` copied from the ``$PACKAGE``.
+The rendered version of the recipe will replace the original ``meta.yaml`` copied from the ``$RECIPE``.
 Contents of the original ``meta.yaml`` will be left at the end of the new file as a comment.
 
 ``recipe_append.yaml`` is incorporated in the rendered recipe automatically by the ``conda render``.

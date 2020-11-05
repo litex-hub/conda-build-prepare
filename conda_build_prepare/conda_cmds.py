@@ -181,16 +181,21 @@ _modified_cfg_srcs = os.path.join(tempfile.gettempdir(),
 
 
 # The package dir is needed to put package's condarc in the right place
-def prepare_environment(recipe_dir, env_dir, packages, env_settings):
+def prepare_environment(recipe_dir, env_dir, package_list, env_settings):
     assert os.path.exists(os.path.join(recipe_dir, 'meta.yaml')), recipe_dir
     assert not os.path.exists(env_dir), env_dir
     assert os.path.isabs(env_dir), env_dir
     assert type(env_settings) is dict, env_settings
+    assert type(package_list) is list, package_list
 
     print('Preparing the environment, please wait...\n')
 
+    # Convert a list of packages to a string
+    packages = ' '.join(package_list)
+
     # Always install conda-build in the created environment
-    packages += ' conda-build'
+    if 'conda-build' not in packages:
+        packages += ' conda-build'
 
     # Create environment
     subprocess.check_output(
