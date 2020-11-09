@@ -8,6 +8,7 @@ import io
 import shutil
 import tempfile
 import sys
+import jinja2
 
 from .prepare import get_local_channels, get_package_condarc
 from .git_helpers import git_checkout, git_clone, git_describe, \
@@ -45,7 +46,7 @@ def get_git_uris(package_dir_or_metadata):
 
 
 def get_package_config(package_dir, env_dir, verbose=False):
-    assert os.path.exists(package_dir)
+    assert os.path.isdir(package_dir)
 
     print('Rendering package metadata, please wait...\n')
     meta = None
@@ -121,16 +122,15 @@ def create_env(package_dir):
 
 def _prepare_single_source(git_repos_dir, src):
     if 'git_url' not in src.keys():
-        # Not a git source; won't be prepared and is not modified
-        return src
+        # Not a git source; won't be prepared or modified
+        return None
     else:
-        # Clone, checkout the repository and set local path as git_url
+        # Clone, checkout the repository and return its local path
         src_path = git_clone(src['git_url'], git_repos_dir)
         if 'git_rev' in src.keys():
             git_checkout(src_path, src['git_rev'])
         git_clone_relative_submodules(src_path, src['git_url'])
-        src['git_url'] = os.path.abspath(src_path)
-        return src
+        return os.path.abspath(src_path)
 
 def _add_extra_tags_if_exist(package_dir, repo_path):
     assert os.path.exists(package_dir)
@@ -279,40 +279,80 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
 
     # Render metadata
 
-    meta = get_package_config(package_dir, env_dir)
+    meta_path = os.path.join(package_dir, 'meta.yaml')
 
-    if len(list(get_git_uris(meta))) < 1:
-        print('\nNo git repositories in the package recipe; version won\'t be set.\n')
-    else:
-        # Download sources and make conda use always those
-        print('Downloading git sources...\n')
+    with(open(meta_path, 'r+')) as meta_file:
+        # Read 'meta.yaml' contents
+        meta_contents = meta_file.read()
+        original_meta = meta_contents
 
-        sources = meta['source']
-        os.mkdir(git_repos_dir)
-        if isinstance(sources, list):
-            new_sources = []
-            for src in sources:
-                new_sources.append(_prepare_single_source(git_repos_dir, src))
-                print()
+        # Load yaml with mostly dummy Jinja2 structures used in Conda recipes
+        def _pin_compatible(package_name, min_pin='x.x.x.x.x.x', max_pin='x', lower_bound=None, upper_bound=None):
+            return ''
+        def _pin_subpackage(package_name, min_pin='x.x.x.x.x.x', max_pin='x', exact=False):
+            return ''
+        conda_context = {
+                'environ':              os.environ,
+                'os':                   os,
+                'GIT_BUILD_STR':        '',
+                'GIT_DESCRIBE_HASH':    '',
+                'GIT_DESCRIBE_NUMBER':  '',
+                'GIT_DESCRIBE_TAG':     '',
+                'GIT_FULL_HASH':        '',
+                'compiler':             lambda _: '',
+                'pin_compatible':       _pin_compatible,
+                'pin_subpackage':       _pin_subpackage,
+                'resolved_packages':    lambda _: [],
+                }
+        jinja_rendered_meta = jinja2.Template(meta_contents).render(conda_context)
+
+        # Yaml loader doesn't like [OS] after quoted strings (which are OK for Conda)
+        # Quotes are removed before loading as they are irrelevant at this point
+        meta = yaml.safe_load(jinja_rendered_meta.replace('"', ''))
+
+        if len(list(get_git_uris(meta))) < 1:
+            print()
+            print('No git repositories in the package recipe; version won\'t be set.')
+            print()
         else:
-            new_sources = _prepare_single_source(git_repos_dir, sources)
-        meta['source'] = new_sources
+            # Download sources and make conda use always those
+            print('Downloading git sources...')
+            print()
 
-        # Set version based on modified git repo
-        print('Modifying git tags to set proper package version...\n')
+            sources = meta['source']
+            os.mkdir(git_repos_dir)
+            first_git_repo_path = None
 
-        git_uris = list(get_git_uris(meta))
-        # For multiple git repositories in sources, the first one is always used
-        first_git_repo_path = git_uris[0]
+            # Make sources a one-element list if it's not a list
+            if not isinstance(sources, list):
+                sources = [ sources ]
+            for src in sources:
+                # The recipe can have some mix of git and non-git sources
+                if 'git_url' in src:
+                    local_git_url = _prepare_single_source(git_repos_dir, src)
+                    meta_contents = meta_contents.replace(
+                            f"git_url: {src['git_url']}", f"git_url: {local_git_url}")
+                    if first_git_repo_path is None:
+                        first_git_repo_path = local_git_url
 
-        git_rewrite_tags(first_git_repo_path)
-        _add_extra_tags_if_exist(package_dir, first_git_repo_path)
-        version = git_describe(first_git_repo_path).replace('-', '_')
-        meta['package']['version'] = version
+            # Set version based on modified git repo
+            print('Modifying git tags to set proper package version...\n')
+
+            git_rewrite_tags(first_git_repo_path)
+            _add_extra_tags_if_exist(package_dir, first_git_repo_path)
+            version = git_describe(first_git_repo_path).replace('-', '_')
+            meta_contents = re.sub(r'(\s+version:).+', r'\1 ' + str(version),
+                    meta_contents)
+
+            # Reset 'meta.yaml' and save metadata without GIT_* vars
+            meta_file.seek(0)
+            meta_file.truncate()
+            meta_file.write(meta_contents)
 
     # Embed script_envs in the environment
     print("Embedding 'build/script_env' variables in the environment...")
 
+    meta = get_package_config(package_dir, env_dir)
     if 'build' in meta.keys() and 'script_env' in meta['build'].keys():
         env_vars = meta['build']['script_env']
         assert type(env_vars) is list, env_vars
@@ -351,9 +391,11 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
                 _try_cygpath_on_git_url(meta['source'])
         meta_file.write(yaml.safe_dump(meta))
         meta_file.write('\n')
+
+        # Save original meta.yaml contents as a comment at the end
         meta_file.write('# Original meta.yaml:\n')
         meta_file.write('#\n')
-        meta_file.writelines(list(map(lambda line: '#' + line, meta_lines)))
+        meta_file.write('# ' + original_meta.replace('\n', '\n# ')[:-2])
 
 def _try_cygpath_on_git_url(src_dict):
     try:
