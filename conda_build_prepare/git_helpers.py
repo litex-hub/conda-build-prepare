@@ -142,11 +142,12 @@ def _call_custom_git_cmd(git_repo, cmd_string, quiet=False):
     return stdout.strip()
 
 
-def list_merged_tags(git_repo):
-    # Tags are sorted by their dates
-    tags = _call_custom_git_cmd(git_repo,
-            'tag --list --sort=taggerdate --merged HEAD').splitlines()
-    return tags
+def get_latest_describe_tag(git_repo):
+    # Find the `git describe` tag having any version-like part
+    try:
+        return _call_custom_git_cmd(git_repo, 'describe --tags --abbrev=0', quiet=True)
+    except subprocess.CalledProcessError:
+        return None
 
 
 def _set_git_config(git_repo, setting, value):
@@ -171,7 +172,7 @@ class GitUserContext:
 
 
 def git_add_tag(git_repo, tag, sha, temp_user=True):
-    git_cmd = f'tag -a {tag} {sha} -m"{tag}"'
+    git_cmd = f'tag --annotate --force -m"{tag}" {tag} {sha}'
     if temp_user:
         with GitUserContext(git_repo, 'conda-build-prepare',
                 'conda-build-prepare@github.com'):
@@ -227,23 +228,23 @@ def tag_extract_version(tag):
 def git_rewrite_tags(git_repo):
     print(f'\nRewriting tags in "{os.path.abspath(git_repo)}"...\n')
 
-    no_version_tag = True
-    all_tags = list_merged_tags(git_repo)
-    # Set user only once for all git_add_tag calls (needs temp_user=False)
-    with GitUserContext(git_repo, 'conda-build-prepare',
-            'conda-build-prepare@github.com'):
-        for tag in all_tags:
-            tag_version = tag_extract_version(tag)
-            if tag_version is None:
+    while True:
+        tag = get_latest_describe_tag(git_repo)
+        if tag is None:
+            # Add 'v0.0' tag on initial commit if `git describe` doesn't find any
+            git_add_initial_tag(git_repo)
+            break
+        tag_version = tag_extract_version(tag)
+        if tag_version is None:
+            git_drop_tag(git_repo, tag)
+        else:
+            if tag_version != tag:
+                # Add tag again but with pure version-like name
+                commit = _call_custom_git_cmd(git_repo, f'rev-list -n 1 {tag}')
                 git_drop_tag(git_repo, tag)
-            else:
-                if tag_version != tag:
-                    tag_commit = _call_custom_git_cmd(git_repo, f'rev-list -n 1 {tag}')
-                    git_drop_tag(git_repo, tag)
-                    git_add_tag(git_repo, tag_version, tag_commit, temp_user=False)
-                no_version_tag = False
-        if no_version_tag:
-            git_add_initial_tag(git_repo, temp_user=False)
+                git_add_tag(git_repo, tag_version, commit)
+            # Finish rewriting after the first successfully rewritten tag
+            break
 
 
 def git_describe(git_repo):
