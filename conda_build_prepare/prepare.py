@@ -65,8 +65,8 @@ def write_metadata(package_dir):
 
     def _try_to_get_git_output(cmd_string):
         try:
-            return _call_custom_git_cmd('.', cmd_string)
-        except:
+            return _call_custom_git_cmd('.', cmd_string, quiet=True)
+        except subprocess.CalledProcessError:
             return 'GIT_ERROR'
 
     # Get details of the repository containing the recipe

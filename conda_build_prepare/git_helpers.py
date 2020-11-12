@@ -131,11 +131,15 @@ def fetch_tags(**env):
     subprocess.check_call(['git', 'fetch', '--tags'], env=env)
 
 
-def _call_custom_git_cmd(git_repo, cmd_string):
+def _call_custom_git_cmd(git_repo, cmd_string, quiet=False):
     cmd = cmd_string.split()
     if cmd[0] != 'git':
         cmd.insert(0, 'git')
-    return subprocess.check_output(cmd, cwd=git_repo).decode('utf-8').strip()
+
+    stdout = subprocess.check_output(cmd, cwd=git_repo, encoding='utf-8',
+            # None means "don't capture"
+            stderr=subprocess.DEVNULL if quiet else None)
+    return stdout.strip()
 
 
 def list_merged_tags(git_repo):
