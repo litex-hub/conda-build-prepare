@@ -12,17 +12,22 @@ The data is also extracted from the repository containing the recipe to populate
 Installation
 ------------
 
-``conda-build-prepare`` can be installed using ``pip`` with the repository address and revision (``@a4c185e467bfa76d90b378dec0357b97faa75cfd`` is the latest development commit right now):
+Using ``pip`` is the easiest way to install ``conda-build-prepare``:
 
 .. code-block:: bash
    :name: install_cbp
 
-   python3 -m pip install git+https://github.com/antmicro/conda-build-prepare@a4c185e467bfa76d90b378dec0357b97faa75cfd#egg=conda-build-prepare
+   python3 -m pip install git+https://github.com/antmicro/conda-build-prepare@master#egg=conda-build-prepare
+
+where ``master`` can be replaced by any revision known to git.
+
+Alternatively, ``python3 setup.py install`` can be called after cloning the repository.
+Either way other packages required by ``conda-build-prepare`` will be installed automatically.
 
 Usage
 -----
 
-After installing ``conda-build-prepare`` or cloning the repository and using the repository root as a working directory, run:
+After installing ``conda-build-prepare`` run:
 
 .. code-block:: bash
    :name: prepare_package

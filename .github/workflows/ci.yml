@@ -21,31 +21,41 @@ jobs:
         shell: bash
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
       - name: Install conda
         uses: s-weigand/setup-conda@v1
         with:
           python-version: 3.7
-          
+
       - name: Create python3 link on Windows
         if: matrix.os == 'windows-latest'
         run: ln -s /c/Miniconda/python /c/Miniconda/python3
 
-      - name: Install pyyaml
-        run: conda install -y pyyaml
-      
       - name: Install tuttest
         run: python -m pip install git+https://github.com/antmicro/tuttest@12ba1cf02ea327f99098005692d4311f0e02cda4#tuttest
-      
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Remove all files but README.rst and test directory
+        run: |
+          set -x
+          ls -ld *
+          GLOBIGNORE=README.rst:test
+          rm -rf *
+          unset GLOBIGNORE
+          ls -ld *
+
+      - name: Install conda-build-prepare with pip
+        # @master revision from README is changed to SHA of the commit being tested
+        run: eval "$(tuttest README.rst install_cbp | sed "s/\@master/\@$GITHUB_SHA/")"
+
       - name: Test prepare_package snippet
         run: |
           set -x
           eval "$(tuttest README.rst set_envs)"
           eval "$(tuttest README.rst prepare_package)"
           tar cf ${DIRECTORY}.tar $DIRECTORY
-          
+
       - name: Print rendered meta.yaml
         run: |
           set -x
@@ -70,6 +80,7 @@ jobs:
 
       - name: Compress DIRECTORY from before building if build failed
         run: |
+          set -x
           eval "$(tuttest README.rst set_envs)"
           bzip2 ${DIRECTORY}.tar
         if: failure()

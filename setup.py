@@ -3,6 +3,9 @@ import setuptools
 with open("README.rst", "r") as readme_fh:
     readme_text = readme_fh.read()
 
+with open("requirements.txt", "r") as requirements_fh:
+    requirements = [ line.strip() for line in requirements_fh.readlines() ]
+
 setuptools.setup(
     name="conda-build-prepare",
     version="0.1",
@@ -20,4 +23,5 @@ setuptools.setup(
         "Operating System :: MacOS"
     ],
     python_requires='>=3.6',
+    install_requires=requirements,
 )
