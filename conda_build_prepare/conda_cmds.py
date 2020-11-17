@@ -40,12 +40,7 @@ def find(key, dictionary):
                         yield result
 
 
-def get_git_uris(package_dir_or_metadata):
-    meta = get_metadata(package_dir_or_metadata)
-    return find("git_url", meta)
-
-
-def get_package_config(package_dir, env_dir, verbose=False):
+def render_metadata(package_dir, env_dir, verbose=False):
     assert os.path.isdir(package_dir)
 
     print('Rendering package metadata, please wait...\n')
@@ -65,18 +60,6 @@ def get_package_config(package_dir, env_dir, verbose=False):
             os.remove(rendered_path)
 
     return meta
-
-
-def dump_config(package_dir_or_metadata):
-    meta = get_metadata(package_dir_or_metadata)
-    print(yaml.dump(meta))
-
-
-def get_metadata(package_dir_or_metadata):
-    if not isinstance(package_dir_or_metadata, dict):
-        return get_package_config(package_dir_or_metadata)
-    else:
-        return package_dir_or_metadata
 
 
 def git_cache_path():
@@ -277,10 +260,7 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
     assert not os.path.exists(git_repos_dir), git_repos_dir
     assert os.path.exists(env_dir), env_dir
 
-    # Render metadata
-
     meta_path = os.path.join(package_dir, 'meta.yaml')
-
     with(open(meta_path, 'r+')) as meta_file:
         # Read 'meta.yaml' contents
         meta_contents = meta_file.read()
@@ -310,7 +290,7 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
         # Quotes are removed before loading as they are irrelevant at this point
         meta = yaml.safe_load(jinja_rendered_meta.replace('"', ''))
 
-        if len(list(get_git_uris(meta))) < 1:
+        if len(list(find("git_url", meta))) < 1:
             print()
             print('No git repositories in the package recipe; version won\'t be set.')
             print()
@@ -349,10 +329,12 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
             meta_file.truncate()
             meta_file.write(meta_contents)
 
+    # Render metadata
+    meta = render_metadata(package_dir, env_dir)
+
     # Embed script_envs in the environment
     print("Embedding 'build/script_env' variables in the environment...")
 
-    meta = get_package_config(package_dir, env_dir)
     if 'build' in meta.keys() and 'script_env' in meta['build'].keys():
         env_vars = meta['build']['script_env']
         assert type(env_vars) is list, env_vars
@@ -370,7 +352,6 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
         meta['build']['script_env'] = env_vars_set
 
     # Save rendered recipe as meta.yaml
-
     meta_path = os.path.join(package_dir, 'meta.yaml')
     with open(meta_path, 'r+') as meta_file:
         meta_lines = meta_file.readlines()
