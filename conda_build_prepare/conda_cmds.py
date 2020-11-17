@@ -356,6 +356,26 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
     with open(meta_path, 'r+') as meta_file:
         meta_lines = meta_file.readlines()
 
+        # Restore `{{ compiler('c/cxx') }}` even though their corresponding packages have already
+        # been added to the recipe. Their presence has some additional influence on `conda-build`.
+        for lang, extra_specifiers in re.findall(r'''
+                \{\{\s*
+                compiler
+                [\(\'"\s]+      # (' or (" with optional spaces
+                ([a-zA-Z]+)     # lang (c/cxx/...)
+                [\)\'"\s]+      # ') or ") with optional spaces
+                \}\}
+                (.*)            # extra_specifiers (e.g. 4.0 [linux])
+                ''', ''.join(meta_lines), re.VERBOSE):
+            # OS specifier will only work in quoted string if it's after '#' (double '#' is OK)
+            extra_specifiers = extra_specifiers.replace('[', '# [')
+            # lang has to be surrounded by double quotes; PyYaml dumps single ones wrong for Conda
+            yaml_compiler = '{{ compiler("' + lang + '") }}' + extra_specifiers
+            # In case there's no such section for the current OS ({{ compiler }} is for other OS)
+            if 'build' not in meta['requirements']:
+                meta['requirements']['build'] = []
+            meta['requirements']['build'].append(yaml_compiler)
+
         meta_file.seek(0)
         meta_file.write('# Rendered by the conda-build-prepare\n')
         meta_file.write('# Original meta.yaml can be found at the end of this file\n')
