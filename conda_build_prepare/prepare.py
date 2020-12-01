@@ -5,9 +5,15 @@ import os
 import re
 import subprocess
 import shutil
-import yaml
 import datetime
 import sys
+
+# Conda's `pip` doesn't install `ruamel.yaml` because it finds it is already
+# installed but the one from Conda has to be imported with `ruamel_yaml`
+try:
+    from ruamel.yaml import YAML
+except ModuleNotFoundError:
+    from ruamel_yaml import YAML
 
 from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd
 from .travis import get_travis_slug
@@ -123,11 +129,11 @@ def write_metadata(package_dir):
     package_condarc = get_package_condarc(package_dir)
     if package_condarc is not None:
         with open(package_condarc, 'r') as condarc_file:
-            condarc = yaml.safe_load(condarc_file)
+            condarc = YAML().load(condarc_file)
         metadata['extra']['condarc'] = condarc
 
     with open(metadata_file, "w") as meta:
-        yaml.safe_dump(metadata, meta)
+        YAML().dump(metadata, meta)
 
 
 def prepare_directory(package_dir, dest_dir):
