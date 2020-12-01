@@ -17,9 +17,9 @@ Using ``pip`` is the easiest way to install ``conda-build-prepare``:
 .. code-block:: bash
    :name: install_cbp
 
-   python3 -m pip install git+https://github.com/antmicro/conda-build-prepare@master#egg=conda-build-prepare
+   python3 -m pip install git+https://github.com/antmicro/conda-build-prepare@v0.1#egg=conda-build-prepare
 
-where ``master`` can be replaced by any revision known to git.
+where ``v0.1`` can be replaced by any tag or revision known to git.
 
 Alternatively, ``python3 setup.py install`` can be called after cloning the repository.
 Either way other packages required by ``conda-build-prepare`` will be installed automatically.
