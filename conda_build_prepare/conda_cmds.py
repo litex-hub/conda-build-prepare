@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-import os
-import json
-import subprocess
-import re
+
 import io
-import shutil
-import tempfile
-import sys
 import jinja2
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
 
 # Conda's `pip` doesn't install `ruamel.yaml` because it finds it is already
 # installed but the one from Conda has to be imported with `ruamel_yaml`

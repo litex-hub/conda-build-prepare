@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
+import datetime
 import json
 import os
 import re
-import subprocess
 import shutil
-import datetime
+import subprocess
 import sys
 
+from collections import OrderedDict
 # Conda's `pip` doesn't install `ruamel.yaml` because it finds it is already
 # installed but the one from Conda has to be imported with `ruamel_yaml`
 try:
@@ -18,7 +19,6 @@ except ModuleNotFoundError:
 from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd
 from .travis import get_travis_slug
 
-from collections import OrderedDict
 
 def get_local_channels():
     local_channels = OrderedDict()
