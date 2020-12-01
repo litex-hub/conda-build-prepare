@@ -302,43 +302,48 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
         meta = safe_yaml.load(jinja_rendered_meta.replace('"', ''))
 
         if len(list(find("git_url", meta))) < 1:
-            print()
-            print('No git repositories in the package recipe; version won\'t be set.')
+            print('No git repositories in the package recipe; tag rewriting will be skipped.')
             print()
         else:
-            # Download sources and make conda use always those
-            print('Downloading git sources...')
-            print()
-
             sources = meta['source']
-            os.mkdir(git_repos_dir)
-            first_git_repo_path = None
 
             # Make sources a one-element list if it's not a list
             if not isinstance(sources, list):
                 sources = [ sources ]
-            for src in sources:
-                # The recipe can have some mix of git and non-git sources
-                if 'git_url' in src:
-                    local_git_url = _prepare_single_source(git_repos_dir, src)
-                    meta_contents = meta_contents.replace(
-                            f"git_url: {src['git_url']}", f"git_url: {local_git_url}")
-                    if first_git_repo_path is None:
-                        first_git_repo_path = local_git_url
 
-            # Set version based on modified git repo
-            print('Modifying git tags to set proper package version...\n')
+            if 'git_url' not in sources[0]:
+                print("First source isn't a git repository; tag rewriting will be skipped.")
+                print()
+            else:
+                # Clone sources and make conda use always those
+                print('Cloning git sources...')
+                print()
 
-            git_rewrite_tags(first_git_repo_path)
-            _add_extra_tags_if_exist(package_dir, first_git_repo_path)
-            version = git_describe(first_git_repo_path).replace('-', '_')
-            meta_contents = re.sub(r'(\s+version:).+', r'\1 ' + str(version),
-                    meta_contents)
+                os.mkdir(git_repos_dir)
+                first_git_repo_path = None
 
-            # Reset 'meta.yaml' and save metadata without GIT_* vars
-            meta_file.seek(0)
-            meta_file.truncate()
-            meta_file.write(meta_contents)
+                for src in sources:
+                    # The recipe can have some mix of git and non-git sources
+                    if 'git_url' in src:
+                        local_git_url = _prepare_single_source(git_repos_dir, src)
+                        meta_contents = meta_contents.replace(
+                                f"git_url: {src['git_url']}", f"git_url: {local_git_url}")
+                        if first_git_repo_path is None:
+                            first_git_repo_path = local_git_url
+
+                # Set version based on modified git repo
+                print('Modifying git tags to set proper package version...')
+
+                git_rewrite_tags(first_git_repo_path)
+                _add_extra_tags_if_exist(package_dir, first_git_repo_path)
+                version = git_describe(first_git_repo_path).replace('-', '_')
+                meta_contents = re.sub(r'(\s+version:).+', r'\1 ' + str(version),
+                        meta_contents)
+
+                # Reset 'meta.yaml' and save metadata without GIT_* vars
+                meta_file.seek(0)
+                meta_file.truncate()
+                meta_file.write(meta_contents)
 
     # Render metadata
     meta = render_metadata(package_dir, env_dir)
