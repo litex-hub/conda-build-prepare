@@ -224,7 +224,7 @@ def tag_extract_version(tag):
         return None
     else:
         version_found = version_search.group(0)
-        return f'v{version_found}'
+        return version_found
 
 
 def git_rewrite_tags(git_repo):
