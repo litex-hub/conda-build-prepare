@@ -49,7 +49,7 @@ if __name__ == '__main__':
     if args.channels is not None:
         env_settings['prepend'] = { 'channels': args.channels }
 
-    prepare_environment(recipe_dir, env_dir, args.packages or [], env_settings)
+    prepare_environment(recipe_dir, env_dir, args.packages or [], env_settings, args.channels or [])
 
     prepare_recipe(recipe_dir, git_dir, env_dir)
 

@@ -173,7 +173,8 @@ _modified_cfg_srcs = os.path.join(tempfile.gettempdir(),
 
 
 # The package dir is needed to put package's condarc in the right place
-def prepare_environment(recipe_dir, env_dir, package_list, env_settings):
+def prepare_environment(recipe_dir, env_dir, package_list, env_settings,
+        top_channels):
     assert os.path.exists(os.path.join(recipe_dir, 'meta.yaml')), recipe_dir
     assert not os.path.exists(env_dir), env_dir
     assert os.path.isabs(env_dir), env_dir
@@ -212,15 +213,8 @@ def prepare_environment(recipe_dir, env_dir, package_list, env_settings):
         print("Use 'restore' as a package argument to restore those files.")
         print()
 
-    # Copy package's condarc file as the most important condarc: $ENV/condarc.
-    #
-    # It won't be overwritten by 'conda config --env' because this command
-    # uses different and less important $ENV/.condarc (DOTcondarc).
-    package_condarc = get_package_condarc(recipe_dir)
-    if package_condarc is not None:
-        shutil.copy(package_condarc, os.path.join(env_dir, 'condarc'))
-
     # Apply env_settings (dictionary with keys: 'add'/'prepend', 'append', 'set')
+    # to the second most important condarc file: `$ENV/.condarc` (DOTcondarc).
     for action in env_settings:
         # It can be a single command for each action
         command = f"conda config --env"
@@ -233,6 +227,18 @@ def prepare_environment(recipe_dir, env_dir, package_list, env_settings):
             for value in values:
                 command += f" --{action} {key} {value}"
         _call_conda_cmd_in_env(command, env_dir)
+
+    # Set package's `condarc` file as the most important one: `$ENV/condarc`.
+    # If there's a `channels` key, then the `--channels` args are put on top.
+    package_condarc = get_package_condarc(recipe_dir)
+    if package_condarc is not None:
+        with open(package_condarc, 'r') as f:
+            condarc_yaml = yaml.load(f.read())
+        if 'channels' in condarc_yaml:
+            for channel in top_channels:
+                condarc_yaml['channels'].insert(0, channel)
+        with open(os.path.join(env_dir, 'condarc'), 'w') as f:
+            yaml.dump(condarc_yaml, f)
 
 
 def _uncomment_file(path):
