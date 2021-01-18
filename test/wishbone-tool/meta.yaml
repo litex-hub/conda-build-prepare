@@ -10,9 +10,9 @@ source:
 
 build:
   # number: 201803050325
-  number: {{ environ.get('DATE_NUM') }}
+  number: {{ environ.get('DATE_NUM', 12345) }}
   # string: 20180305_0325
-  string: {{ environ.get('DATE_STR') }}
+  string: {{ environ.get('DATE_STR', 'cbp_ci_test_12345') }}
   script_env:
     - CI
     - TRAVIS
