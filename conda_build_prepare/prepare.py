@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import datetime
 import json
 import os
 import re
@@ -9,6 +8,7 @@ import subprocess
 import sys
 
 from collections import OrderedDict
+from datetime import datetime, timezone
 # Conda's `pip` doesn't install `ruamel.yaml` because it finds it is already
 # installed but the one from Conda has to be imported with `ruamel_yaml`
 try:
@@ -16,7 +16,8 @@ try:
 except ModuleNotFoundError:
     from ruamel_yaml import YAML
 
-from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd
+from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd, \
+        git_get_head_time, is_inside_git_repo
 from .travis import get_travis_slug
 
 
@@ -81,7 +82,7 @@ def write_metadata(package_dir):
         'branch':   _try_to_get_git_output('rev-parse --abbrev-ref HEAD'),
         'commit':   _try_to_get_git_output('rev-parse HEAD'),
         'describe': _try_to_get_git_output('describe --long'),
-        'date':     datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S'),
+        'date':     datetime.utcnow().strftime('%Y%m%d_%H%M%S'),
     }
 
     # Fill in metadata from travis environment
@@ -136,9 +137,41 @@ def write_metadata(package_dir):
         YAML().dump(metadata, meta)
 
 
+def _get_latest_mtime_in_dir(directory):
+    all_dir_mtimes = []
+    for _dir,_,files in os.walk(directory):
+        for f in files:
+            file_mtime = os.path.getmtime(os.path.join(_dir, f))
+            all_dir_mtimes.append(file_mtime)
+    latest_timestamp = max(all_dir_mtimes)
+    return datetime.fromtimestamp(latest_timestamp, timezone.utc)
+
+
+def _set_date_env_vars(recipe_dir):
+    def _set_env_var(name, value):
+        print(f"Setting environment variable: {name} = {value}")
+        os.environ[name] = value
+
+    if 'DATE_STR' not in os.environ:
+        if is_inside_git_repo(recipe_dir):
+            datetime = git_get_head_time(recipe_dir)
+        else:
+            datetime = _get_latest_mtime_in_dir(recipe_dir)
+        date_str = datetime.strftime('%Y%m%d_%H%M%S')
+        _set_env_var('DATE_STR', date_str)
+
+    # Make sure `DATE_NUM` is always a digit-only version of `DATE_STR`
+    date_num = re.sub(r"[^0-9]", "", os.environ['DATE_STR'])
+    if 'DATE_NUM' not in os.environ or os.environ['DATE_NUM'] != date_num:
+        _set_env_var('DATE_NUM', date_num)
+        print()
+
 def prepare_directory(package_dir, dest_dir):
     assert os.path.exists(package_dir)
     assert not os.path.exists(dest_dir)
+
+    # Set DATE_NUM and DATE_STR environment variables used by many recipes
+    _set_date_env_vars(package_dir)
 
     shutil.copytree(package_dir, dest_dir)
 
