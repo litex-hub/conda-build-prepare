@@ -16,7 +16,8 @@ try:
 except ModuleNotFoundError:
     from ruamel_yaml import YAML
 
-from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd
+from .git_helpers import remotes, extract_github_user, _call_custom_git_cmd, \
+        git_get_heads_time
 from .travis import get_travis_slug
 
 
@@ -136,9 +137,29 @@ def write_metadata(package_dir):
         YAML().dump(metadata, meta)
 
 
+def _set_date_env_vars(host_git_repo):
+    if 'DATE_NUM' not in os.environ or 'DATE_STR' not in os.environ:
+        try:
+            date_num = git_get_heads_time(host_git_repo, '%Y%m%d%H%M%S')
+            print(f"Setting '{date_num}' as DATE_NUM")
+            os.environ['DATE_NUM'] = date_num
+
+            date_str = git_get_heads_time(host_git_repo, '%Y%m%d_%H%M%S')
+            print(f"Setting '{date_str}' as DATE_STR.")
+            os.environ['DATE_STR'] = date_str
+        except subprocess.CalledProcessError:
+            print()
+            print('WARNING: Failed to set default DATE_NUM and DATE_STR.')
+            print('  This is normal if the recipe isn\'t in a git repository.')
+            print()
+
+
 def prepare_directory(package_dir, dest_dir):
     assert os.path.exists(package_dir)
     assert not os.path.exists(dest_dir)
+
+    # Set DATE_NUM and DATE_STR environment variables used by many recipes
+    _set_date_env_vars(package_dir)
 
     shutil.copytree(package_dir, dest_dir)
 

@@ -5,6 +5,8 @@ import re
 import subprocess
 import urllib.parse
 
+from datetime import datetime
+
 GITHUB_RE = re.compile("github.com[:/](?P<user>[^/\n]+)(/(?P<repo>[^/.].*?))?(.git|/|$)")
 
 def extract_github_parts(url):
@@ -288,6 +290,12 @@ def git_clone_relative_submodules(git_repo, git_url):
 
 def git_checkout(git_repo, revision):
     _call_custom_git_cmd(git_repo, f'checkout {revision}')
+
+
+def git_get_heads_time(git_repo, date_format):
+    heads_timestamp_str = _call_custom_git_cmd(git_repo, 'git log --format=%ct -n1')
+    heads_datetime = datetime.fromtimestamp(int(heads_timestamp_str))
+    return heads_datetime.strftime(date_format)
 
 
 if __name__ == "__main__":
