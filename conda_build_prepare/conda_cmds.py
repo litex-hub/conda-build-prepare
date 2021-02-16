@@ -150,11 +150,31 @@ def _add_extra_tags_if_exist(package_dir, repo_path):
                     continue
         print()
 
+# A wrapper for subprocess.check_output printing stdout in case of process
+# error. By default it isn't printed and can make debugging much harder.
+def _check_output(command, **kwargs):
+    try:
+        return subprocess.check_output(command.split(), encoding='utf-8',
+                **kwargs).strip()
+    except subprocess.CalledProcessError as e:
+        print('!! =======================================================')
+        print('!! ERROR: conda-build-prepare subprocess failed!')
+        print('!!')
+        print('!! Command called: ' + command)
+        print('!!')
+        print('!! STDERR not captured; look above for errors too! STDOUT:')
+        print('!!')
+        print(e.output.strip())
+        print('!!')
+        print('!! =======================================================')
+        print()
+        raise
+
+
 def _call_conda_cmd_in_env(cmd_string, env_path):
     assert os.path.isdir(env_path), env_path
 
-    return subprocess.check_output(f'conda run -p {env_path} {cmd_string}'
-            .split(), encoding='utf-8', env=os.environ).strip()
+    return _check_output(f'conda run -p {env_path} {cmd_string}')
 
 _modification_line = '# Modified by the conda-build-prepare\n'
 
@@ -191,10 +211,9 @@ def prepare_environment(recipe_dir, env_dir, package_list, env_settings,
         packages += ' conda-build'
 
     # Create environment
-    subprocess.check_output(
-            # (no-default-packages counteracts create_default_packages option)
-            f'conda create --yes --no-default-packages -p {env_dir} {packages}'
-            .split())
+    # (no-default-packages counteracts create_default_packages option)
+    _check_output(f'conda create --yes --no-default-packages -p {env_dir} '
+            + packages)
 
     # Comment out all config files influencing created environment
     config = _call_conda_cmd_in_env('conda config --show-sources', env_dir)
@@ -421,9 +440,8 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
 def _try_cygpath_on_git_url(src_dict):
     try:
         if 'git_url' in src_dict.keys() and os.path.isdir(src_dict['git_url']):
-            src_dict['git_url'] = subprocess.check_output(
-                    ['cygpath', '-a', src_dict['git_url']],
-                    encoding='utf-8', env=os.environ).strip()
+            src_dict['git_url'] = _check_output(
+                    "cygpath -a " + src_dict['git_url'])
     except FileNotFoundError:  # No cygpath
         pass
 
