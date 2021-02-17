@@ -61,8 +61,8 @@ def get_package_condarc(recipe_dir):
         return None
 
 
-def write_metadata(package_dir, recipe_dir):
-    metadata_file = os.path.join(package_dir, 'recipe_append.yaml')
+def write_metadata(new_recipe_dir, original_recipe_dir):
+    metadata_file = os.path.join(new_recipe_dir, 'recipe_append.yaml')
 
     metadata = {
         'extra': {
@@ -72,7 +72,8 @@ def write_metadata(package_dir, recipe_dir):
 
     def _try_to_get_git_output(cmd_string):
         try:
-            return _call_custom_git_cmd(recipe_dir, cmd_string, quiet=True)
+            return _call_custom_git_cmd(original_recipe_dir, cmd_string,
+                    quiet=True)
         except subprocess.CalledProcessError:
             return 'GIT_ERROR'
 
@@ -127,7 +128,7 @@ def write_metadata(package_dir, recipe_dir):
     if toolchain_arch is not None:
         metadata['extra']['toolchain_arch'] = toolchain_arch
 
-    package_condarc = get_package_condarc(package_dir)
+    package_condarc = get_package_condarc(new_recipe_dir)
     if package_condarc is not None:
         with open(package_condarc, 'r') as condarc_file:
             condarc = YAML().load(condarc_file)
@@ -166,14 +167,14 @@ def _set_date_env_vars(recipe_dir):
         _set_env_var('DATE_NUM', date_num)
         print()
 
-def prepare_directory(package_dir, dest_dir):
-    assert os.path.exists(package_dir)
+def prepare_directory(recipe_dir, dest_dir):
+    assert os.path.exists(recipe_dir)
     assert not os.path.exists(dest_dir)
 
     # Set DATE_NUM and DATE_STR environment variables used by many recipes
-    _set_date_env_vars(package_dir)
+    _set_date_env_vars(recipe_dir)
 
-    shutil.copytree(package_dir, dest_dir)
+    shutil.copytree(recipe_dir, dest_dir)
 
     # Prescript
 
