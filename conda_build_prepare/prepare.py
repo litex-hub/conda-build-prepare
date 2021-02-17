@@ -61,7 +61,7 @@ def get_package_condarc(recipe_dir):
         return None
 
 
-def write_metadata(package_dir):
+def write_metadata(package_dir, recipe_dir):
     metadata_file = os.path.join(package_dir, 'recipe_append.yaml')
 
     metadata = {
@@ -72,7 +72,7 @@ def write_metadata(package_dir):
 
     def _try_to_get_git_output(cmd_string):
         try:
-            return _call_custom_git_cmd('.', cmd_string, quiet=True)
+            return _call_custom_git_cmd(recipe_dir, cmd_string, quiet=True)
         except subprocess.CalledProcessError:
             return 'GIT_ERROR'
 
@@ -186,7 +186,7 @@ def prepare_directory(package_dir, dest_dir):
                 shell=sys.platform in ['cygwin', 'msys', 'win32'])
         print('\nFinished executing prescript.\n')
 
-    write_metadata(dest_dir)
+    write_metadata(dest_dir, recipe_dir)
 
 
 if __name__ == "__main__":
