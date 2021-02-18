@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as requirements_fh:
 
 setuptools.setup(
     name="conda-build-prepare",
-    version="0.1",
+    version="0.1.1",
     description="A tool preparing Conda recipes for building",
     long_description=readme_text,
     long_description_content_type="text/x-rst",
