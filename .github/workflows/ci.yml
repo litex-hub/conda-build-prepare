@@ -46,8 +46,8 @@ jobs:
           ls -ld *
 
       - name: Install conda-build-prepare with pip
-        # @v0.1 tag from README is changed to SHA of the commit being tested
-        run: eval "$(tuttest README.rst install_cbp | sed "s/\@v0.1/\@$GITHUB_SHA/")"
+        # Revision from README is changed to the SHA of the commit being tested
+        run: eval "$(tuttest README.rst install_cbp | sed "s/\@[^#]\+#/\@$GITHUB_SHA#/")"
 
       - name: Test prepare_package snippet
         run: |
