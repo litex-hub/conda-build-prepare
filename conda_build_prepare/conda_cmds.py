@@ -314,6 +314,7 @@ def prepare_recipe(package_dir, git_repos_dir, env_dir):
                 'GIT_DESCRIBE_TAG':     '',
                 'GIT_FULL_HASH':        '',
                 'compiler':             lambda _: '',
+                'cdt':                  lambda _: '',
                 'pin_compatible':       _pin_compatible,
                 'pin_subpackage':       _pin_subpackage,
                 'resolved_packages':    lambda _: [],
