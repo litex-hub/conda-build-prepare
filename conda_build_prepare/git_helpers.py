@@ -187,7 +187,7 @@ def git_add_tag(git_repo, tag, sha, temp_user=True):
 
 def git_add_initial_tag(git_repo, temp_user=True):
     first_commit = _call_custom_git_cmd(git_repo, 'rev-list --max-parents=0 HEAD')
-    git_add_tag(git_repo, 'v0.0', first_commit, temp_user)
+    git_add_tag(git_repo, '0.0', first_commit, temp_user)
 
 
 def git_drop_tag(git_repo, tag):
@@ -234,7 +234,7 @@ def git_rewrite_tags(git_repo):
     while True:
         tag = get_latest_describe_tag(git_repo)
         if tag is None:
-            # Add 'v0.0' tag on initial commit if `git describe` doesn't find any
+            # Add '0.0' tag on initial commit and skip rewriting.
             git_add_initial_tag(git_repo)
             break
         tag_version = tag_extract_version(tag)
