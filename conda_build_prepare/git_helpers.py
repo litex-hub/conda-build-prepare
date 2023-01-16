@@ -133,22 +133,52 @@ def fetch_tags(**env):
     subprocess.check_call(['git', 'fetch', '--tags'], env=env)
 
 
-def _call_custom_git_cmd(git_repo, cmd_string, check=True, quiet=False):
+def _call_custom_git_cmd_cp(git_repo, cmd_string, check=True,
+        stderr=subprocess.PIPE) -> subprocess.CompletedProcess:
     cmd = cmd_string.split()
     if cmd[0] != 'git':
         cmd.insert(0, 'git')
+    return subprocess.run(cmd, check=check, cwd=git_repo,
+            encoding='utf-8', stderr=stderr, stdout=subprocess.PIPE)
 
-    stdout = subprocess.run(cmd, check=check, cwd=git_repo, encoding='utf-8',
-            # None means "don't capture"
-            stderr=subprocess.DEVNULL if quiet else None,
-            stdout=subprocess.PIPE).stdout
+
+def _call_custom_git_cmd(git_repo, cmd_string, check=True, quiet=False) -> str:
+    stdout = _call_custom_git_cmd_cp(
+                git_repo, cmd_string, check,
+                # None means "don't capture"
+                stderr=subprocess.DEVNULL if quiet else None
+            ).stdout
     return stdout.strip()
 
 
-def get_latest_describe_tag(git_repo):
-    # Find the `git describe` tag having any version-like part
+# It's possible to have a git tag named differently than it's internally known as.
+# See 'misnamed' in git's 'builtin/describe.c' source file for details.
+#
+# Let's check whether git printed a warning about such a situation to STDERR and
+# use the internal name of the tag if so. Two versions of the warning were used.
+def handle_git_describe_stderr(stderr) -> str:
+    for pattern in [
+                "tag '.*' is really '(.*)' here",          # since git v1.5.5
+                "tag '(.*)' is externally known as '.*'",  # since git v2.27
+            ]:
+        match = re.search(pattern, stderr)
+        if match:
+            return match.group(1)
+
+    # Let's print the stderr if it wasn't any of these messages.
+    print(stderr)
+    return None
+
+
+def get_first_reachable_tag(git_repo):
     try:
-        return _call_custom_git_cmd(git_repo, 'describe --tags --abbrev=0', quiet=True)
+        cp = _call_custom_git_cmd_cp(git_repo, 'describe --tags --abbrev=0')
+        tag_name = cp.stdout.strip()
+        if cp.stderr:
+            misnamed_tag = handle_git_describe_stderr(cp.stderr)
+            if misnamed_tag:
+                return misnamed_tag
+        return tag_name
     except subprocess.CalledProcessError:
         return None
 
@@ -232,7 +262,7 @@ def git_rewrite_tags(git_repo):
     print(f'\nRewriting tags in "{os.path.abspath(git_repo)}"...\n')
 
     while True:
-        tag = get_latest_describe_tag(git_repo)
+        tag = get_first_reachable_tag(git_repo)
         if tag is None:
             # Add '0.0' tag on initial commit and skip rewriting.
             git_add_initial_tag(git_repo)
